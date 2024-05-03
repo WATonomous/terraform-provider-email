@@ -5,7 +5,7 @@ Terraform provider for sending emails.
 ## Development
 
 ```bash
-go tidy # install dependencies
+go mod tidy # install dependencies
 make build # build the provider
 make install # install the provider
 ```
