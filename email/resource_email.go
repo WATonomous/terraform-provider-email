@@ -3,6 +3,7 @@ package email
 import (
 	"log"
 	"net/smtp"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -64,6 +65,17 @@ func resourceEmail() *schema.Resource {
 	}
 }
 
+// regex function to extract the status code
+func extractStatusCode(errMsg string) string {
+	// Regex to find the first three-digit number, which is the SMTP status code
+	re := regexp.MustCompile(`\b\d{3}\b`)
+	matches := re.FindString(errMsg)
+	if matches != "" {
+		return matches // Returns the first match (three-digit number) if found
+	}
+	return "No status code found"
+}
+
 func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	to := d.Get("to").(string)
 	from := d.Get("from").(string)
@@ -88,13 +100,33 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 		from, []string{to}, []byte(msg))
 
 	if err != nil {
-		log.Printf("smtp error: %s", err)
-		return err
+		errorCode := extractStatusCode(err.Error())
+		// make tf configurable eventually? maybe?
+		maxRetries := 5
+		if errorCode == "421" {
+			for retries := maxRetries; retries > 0; retries-- {
+				// exit if error has been cleared
+				if err == nil {
+					break
+				}
+				// delay between retries
+				time.Sleep(10)
+				// update error
+				err = smtp.SendMail(smtpServer+":"+smtpPort,
+					smtp.PlainAuth("", smtpUsername, smtpPassword, smtpServer),
+					from, []string{to}, []byte(msg))
+			}
+		}
+		// return error if the error wasn't cleared
+		if err != nil {
+			log.Printf("smtp error: %s", err)
+			return err
+		}
 	}
-
 	// Create unique ID using current timestamp
 	timestamp := time.Now().Unix()
 	d.SetId(to + " | " + subject + " | " + strconv.FormatInt(timestamp, 10))
+
 	return resourceEmailRead(d, m)
 }
 

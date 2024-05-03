@@ -9,15 +9,9 @@ terraform {
 
 provider "email" {}
 
-variable "recipients" {
-  default = ["recipient1@example.com", "recipient2@example.com", "recipient3@example.com", "recipient4@example.com", "recipient5@example.com", "recipient6@example.com"]
-}
 
 resource "email_email" "example" {
-  # to = "infra-outreach@watonomous.ca"
-  for_each = toset(var.recipients)
-
-  to = each.value
+  to = "infra-outreach@watonomous.ca"
   from = "sentry-outgoing@watonomous.ca"
   reply_to = "infrastructure@watonomous.ca"
   subject = "Hello from Terraform"
