@@ -2,6 +2,7 @@ package email
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -55,6 +56,32 @@ func testAccCheckEmailExists(n string) resource.TestCheckFunc {
 		}
 
 		return nil
+	}
+}
+
+func mockExponentialBackOff() (int, int, int) {
+	maxRetries := 5
+	// set random number range
+	minRandInt := 10
+	maxRandInt := 150
+	// generate random number in that range
+	randomNumber := rand.Intn(maxRandInt-minRandInt) + minRandInt
+	orignalRandomNumber := randomNumber
+	for retries := 0; retries < maxRetries; retries++ {
+		// double randomNumber
+		randomNumber = randomNumber << 1
+	}
+
+	return orignalRandomNumber, randomNumber, maxRetries
+}
+
+func TestExponentialBackOff(t *testing.T) {
+	orignalRandomNumber, randomNumber, maxRetries := mockExponentialBackOff()
+
+	expectedResult := orignalRandomNumber << maxRetries
+
+	if expectedResult != randomNumber {
+		t.Errorf("Expected: %d, Got: %d", expectedResult, randomNumber)
 	}
 }
 

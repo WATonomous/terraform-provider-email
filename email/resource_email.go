@@ -2,6 +2,7 @@ package email
 
 import (
 	"log"
+	"math/rand"
 	"net/smtp"
 	"regexp"
 	"strconv"
@@ -95,35 +96,40 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 		preamble + "\n\n" +
 		body
 
-	err := smtp.SendMail(smtpServer+":"+smtpPort,
-		smtp.PlainAuth("", smtpUsername, smtpPassword, smtpServer),
-		from, []string{to}, []byte(msg))
-
-	if err != nil {
+	// TODO: make this tf configurable
+	maxRetries := 5
+	// set random number range
+	minRandInt := 10
+	maxRandInt := 150
+	// generate random number in that range
+	randomNumber := rand.Intn(maxRandInt-minRandInt) + minRandInt
+	var err error
+	for retries := 0; retries < maxRetries; retries++ {
+		// send SMTP email
+		err = smtp.SendMail(smtpServer+":"+smtpPort,
+			smtp.PlainAuth("", smtpUsername, smtpPassword, smtpServer),
+			from, []string{to}, []byte(msg))
+		if err == nil {
+			break
+		}
+		// extract the error code
 		errorCode := extractStatusCode(err.Error())
-		// make tf configurable eventually? maybe?
-		maxRetries := 5
-		if errorCode == "421" {
-			for retries := maxRetries; retries > 0; retries-- {
-				// exit if error has been cleared
-				if err == nil {
-					break
-				}
-				// delay between retries
-				time.Sleep(10)
-				// update error
-				err = smtp.SendMail(smtpServer+":"+smtpPort,
-					smtp.PlainAuth("", smtpUsername, smtpPassword, smtpServer),
-					from, []string{to}, []byte(msg))
-			}
+		log.Printf("Extracted Error Code: %s", errorCode)
+		// guard statement for 421
+		if errorCode != "421" {
+			break
 		}
-		// return error if the error wasn't cleared
-		if err != nil {
-			log.Printf("smtp error: %s", err)
-			return err
-		}
+		// implement exponential backoff
+		time.Sleep(time.Duration(randomNumber << 1))
 	}
-	// Create unique ID using current timestamp
+
+	// log error if not cleared after retries
+	if err != nil {
+		log.Printf("smtp error: %s", err)
+		log.Printf("retry value: %d", randomNumber)
+		return err
+	}
+
 	timestamp := time.Now().Unix()
 	d.SetId(to + " | " + subject + " | " + strconv.FormatInt(timestamp, 10))
 
