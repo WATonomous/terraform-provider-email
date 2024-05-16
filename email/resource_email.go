@@ -11,6 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
+// define function type
+type SendMailFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+
 func resourceEmail() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceEmailCreate,
@@ -98,35 +101,11 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 
 	// TODO: make this tf configurable
 	maxRetries := 5
-	// set random number range
-	minRandInt := 10
-	maxRandInt := 150
-	// generate random number in that range
-	randomNumber := rand.Intn(maxRandInt-minRandInt) + minRandInt
-	var err error
-	for retries := 0; retries < maxRetries; retries++ {
-		// send SMTP email
-		err = smtp.SendMail(smtpServer+":"+smtpPort,
-			smtp.PlainAuth("", smtpUsername, smtpPassword, smtpServer),
-			from, []string{to}, []byte(msg))
-		if err == nil {
-			break
-		}
-		// extract the error code
-		errorCode := extractStatusCode(err.Error())
-		log.Printf("Extracted Error Code: %s", errorCode)
-		// guard statement for 421
-		if errorCode != "421" {
-			break
-		}
-		// implement exponential backoff
-		time.Sleep(time.Duration(randomNumber << 1))
-	}
-
+	// send mail using exponential back-off
+	err := sendMail(smtp.SendMail, maxRetries, smtpServer, smtpPort, smtpUsername, smtpPassword, from, to, msg)
 	// log error if not cleared after retries
 	if err != nil {
 		log.Printf("smtp error: %s", err)
-		log.Printf("retry value: %d", randomNumber)
 		return err
 	}
 
@@ -134,6 +113,35 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	d.SetId(to + " | " + subject + " | " + strconv.FormatInt(timestamp, 10))
 
 	return resourceEmailRead(d, m)
+}
+
+func sendMail(sendEmail SendMailFunc, maxRetries int, smtpServer string, smtpPort string, smtpUsername string, smtpPassword string, from string, to string, msg string) error {
+	// set random number range
+	minRandInt := 10
+	maxRandInt := 150
+	// generate random number in that range
+	randomNumber := rand.Intn(maxRandInt-minRandInt) + minRandInt
+	var err error
+	for retries := 0; retries < maxRetries; retries++ {
+		// send smtp email
+		err = sendEmail(smtpServer+":"+smtpPort,
+			smtp.PlainAuth("", smtpUsername, smtpPassword, smtpServer),
+			from, []string{to}, []byte(msg))
+
+		if err == nil {
+			break
+		}
+		// extract error code
+		errorCode := extractStatusCode(err.Error())
+		log.Printf("Extracted Error Code: %s", errorCode)
+		// guard statement for error 421
+		if errorCode != "421" {
+			break
+		}
+		// implement exponential back off
+		time.Sleep(time.Duration(randomNumber << 1))
+	}
+	return err
 }
 
 func resourceEmailRead(d *schema.ResourceData, m interface{}) error {

@@ -1,8 +1,9 @@
 package email
 
 import (
+	"errors"
 	"fmt"
-	"math/rand"
+	"net/smtp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -58,31 +59,36 @@ func testAccCheckEmailExists(n string) resource.TestCheckFunc {
 		return nil
 	}
 }
-
-func mockExponentialBackOff() (int, int, int) {
-	maxRetries := 5
-	// set random number range
-	minRandInt := 10
-	maxRandInt := 150
-	// generate random number in that range
-	randomNumber := rand.Intn(maxRandInt-minRandInt) + minRandInt
-	orignalRandomNumber := randomNumber
-	for retries := 0; retries < maxRetries; retries++ {
-		// double randomNumber
-		randomNumber = randomNumber << 1
-	}
-
-	return orignalRandomNumber, randomNumber, maxRetries
+func mockSendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	return errors.New("421 Service not available")
 }
 
-func TestExponentialBackOff(t *testing.T) {
-	orignalRandomNumber, randomNumber, maxRetries := mockExponentialBackOff()
+func TestRetryWorkflow(t *testing.T) {
+	maxRetries := 5
 
-	expectedResult := orignalRandomNumber << maxRetries
+	userName := "username"
+	password := "password"
 
-	if expectedResult != randomNumber {
-		t.Errorf("Expected: %d, Got: %d", expectedResult, randomNumber)
+	server := "localhost"
+	port := "2525"
+
+	to := "hello@example.com"
+	from := "wato@example.com"
+	msg := "hello"
+
+	// TO-DO: Create Struct With Errors, Expected Values, Iterate Through Them
+
+	// grab error & test error code
+	err := sendMail(mockSendMail, maxRetries, server, port, userName, password, from, to, msg)
+	errCode := extractStatusCode(err.Error())
+	// Error Guard Statements
+	if err == nil {
+		t.Errorf("Expected: %s, Got: %s", "nil", err)
 	}
+	if errCode != "421" {
+		t.Errorf("Expected: %s, Got: %s", "421", errCode)
+	}
+
 }
 
 // Requires a local SMTP server running on port 2525
