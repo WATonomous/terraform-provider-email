@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAccEmail_basic(t *testing.T) {
@@ -63,32 +64,54 @@ func mockSendMail(addr string, a smtp.Auth, from string, to []string, msg []byte
 	return errors.New("421 Service not available")
 }
 
+// function to test non-421 error
+func mockReturnNon421(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	return errors.New("500 Internal Server Error")
+}
+
+// email to return no error
+func mockSendMailSuccess(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	return nil
+}
+
 func TestRetryWorkflow(t *testing.T) {
+	// define max retries
 	maxRetries := 5
-
-	userName := "username"
-	password := "password"
-
-	server := "localhost"
-	port := "2525"
-
-	to := "hello@example.com"
-	from := "wato@example.com"
-	msg := "hello"
-
-	// TO-DO: Create Struct With Errors, Expected Values, Iterate Through Them
-
-	// grab error & test error code
-	err := sendMail(mockSendMail, maxRetries, server, port, userName, password, from, to, msg)
-	errCode := extractStatusCode(err.Error())
-	// Error Guard Statements
-	if err == nil {
-		t.Errorf("Expected: %s, Got: %s", "nil", err)
+	// write the tests
+	tests := []struct {
+		name         string
+		sendMailFunc SendMailFunc
+		expectedErr  error
+	}{
+		{
+			name:         "Retry with 421 error",
+			sendMailFunc: mockSendMail,
+			expectedErr:  errors.New("421 Service not available"),
+		},
+		{
+			name:         "Success on first try",
+			sendMailFunc: mockSendMailSuccess,
+			expectedErr:  nil,
+		},
+		{
+			name:         "Other error",
+			sendMailFunc: mockReturnNon421,
+			expectedErr:  errors.New("500 Internal Server Error"),
+		},
 	}
-	if errCode != "421" {
-		t.Errorf("Expected: %s, Got: %s", "421", errCode)
+	// execute the tests
+	for _, test := range tests {
+		// run subtests
+		t.Run(test.name, func(t *testing.T) {
+			err := sendMail(test.sendMailFunc, maxRetries, "localhost", "2525", "username", "password", "from@example.com", "to@example.com", "message")
+			if test.expectedErr != nil {
+				// assert that the errors are equal
+				assert.EqualError(t, err, test.expectedErr.Error())
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
-
 }
 
 // Requires a local SMTP server running on port 2525
