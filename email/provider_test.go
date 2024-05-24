@@ -60,12 +60,12 @@ func testAccCheckEmailExists(n string) resource.TestCheckFunc {
 		return nil
 	}
 }
-func mockSendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+func mockSendMailReturn421(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 	return errors.New("421 Service not available")
 }
 
 // function to test non-421 error
-func mockReturnNon421(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+func mockReturn500(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 	return errors.New("500 Internal Server Error")
 }
 
@@ -85,7 +85,7 @@ func TestRetryWorkflow(t *testing.T) {
 	}{
 		{
 			name:         "Retry with 421 error",
-			sendMailFunc: mockSendMail,
+			sendMailFunc: mockSendMailReturn421,
 			expectedErr:  errors.New("421 Service not available"),
 		},
 		{
@@ -95,7 +95,7 @@ func TestRetryWorkflow(t *testing.T) {
 		},
 		{
 			name:         "Other error",
-			sendMailFunc: mockReturnNon421,
+			sendMailFunc: mockReturn500,
 			expectedErr:  errors.New("500 Internal Server Error"),
 		},
 	}

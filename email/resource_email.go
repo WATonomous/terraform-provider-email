@@ -115,8 +115,8 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	return resourceEmailRead(d, m)
 }
 
-func sendMail(sendEmail SendMailFunc, maxRetries int, smtpServer string, smtpPort string, smtpUsername string, smtpPassword string, from string, to string, msg string) error {
-	// set random number range
+func sendMail(sendEmailImpl SendMailFunc, maxRetries int, smtpServer string, smtpPort string, smtpUsername string, smtpPassword string, from string, to string, msg string) error {
+	// Set up a random number for exponential backoff
 	minRandInt := 10
 	maxRandInt := 150
 	// generate random number in that range
@@ -124,7 +124,7 @@ func sendMail(sendEmail SendMailFunc, maxRetries int, smtpServer string, smtpPor
 	var err error
 	for retries := 0; retries < maxRetries; retries++ {
 		// send smtp email
-		err = sendEmail(smtpServer+":"+smtpPort,
+		err = sendEmailImpl(smtpServer+":"+smtpPort,
 			smtp.PlainAuth("", smtpUsername, smtpPassword, smtpServer),
 			from, []string{to}, []byte(msg))
 
