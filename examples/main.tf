@@ -9,6 +9,7 @@ terraform {
 
 provider "email" {}
 
+
 resource "email_email" "example" {
   to = "infra-outreach@watonomous.ca"
   from = "sentry-outgoing@watonomous.ca"
