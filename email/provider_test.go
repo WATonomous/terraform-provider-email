@@ -12,6 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Global Testing Variables
+var sendMailInvocations int = 0
+
 func TestAccEmail_basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		Providers: map[string]*schema.Provider{
@@ -61,16 +64,19 @@ func testAccCheckEmailExists(n string) resource.TestCheckFunc {
 	}
 }
 func mockSendMailReturn421(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	sendMailInvocations += 1
 	return errors.New("421 Service not available")
 }
 
 // function to test non-421 error
-func mockReturn500(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+func mockSendMailReturn500(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	sendMailInvocations += 1
 	return errors.New("500 Internal Server Error")
 }
 
 // email to return no error
 func mockSendMailSuccess(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	sendMailInvocations += 1
 	return nil
 }
 
@@ -79,30 +85,36 @@ func TestRetryWorkflow(t *testing.T) {
 	maxRetries := 5
 	// write the tests
 	tests := []struct {
-		name         string
-		sendMailFunc SendMailFunc
-		expectedErr  error
+		name                        string
+		sendMailFunc                SendMailFunc
+		expectedErr                 error
+		expectedSendMailInvocations int
 	}{
 		{
-			name:         "Retry with 421 error",
-			sendMailFunc: mockSendMailReturn421,
-			expectedErr:  errors.New("421 Service not available"),
+			name:                        "Retry with 421 error",
+			sendMailFunc:                mockSendMailReturn421,
+			expectedErr:                 errors.New("421 Service not available"),
+			expectedSendMailInvocations: maxRetries,
 		},
 		{
-			name:         "Success on first try",
-			sendMailFunc: mockSendMailSuccess,
-			expectedErr:  nil,
+			name:                        "Success on first try",
+			sendMailFunc:                mockSendMailSuccess,
+			expectedErr:                 nil,
+			expectedSendMailInvocations: 1,
 		},
 		{
-			name:         "Other error",
-			sendMailFunc: mockReturn500,
-			expectedErr:  errors.New("500 Internal Server Error"),
+			name:                        "Other error",
+			sendMailFunc:                mockSendMailReturn500,
+			expectedErr:                 errors.New("500 Internal Server Error"),
+			expectedSendMailInvocations: 1,
 		},
 	}
 	// execute the tests
 	for _, test := range tests {
 		// run subtests
 		t.Run(test.name, func(t *testing.T) {
+			// set test retries zero before each test
+			sendMailInvocations = 0
 			err := sendMail(test.sendMailFunc, maxRetries, "localhost", "2525", "username", "password", "from@example.com", "to@example.com", "message")
 			if test.expectedErr != nil {
 				// assert that the errors are equal
@@ -110,6 +122,8 @@ func TestRetryWorkflow(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+			// assert testing number invocations regardless
+			assert.Equal(t, sendMailInvocations, test.expectedSendMailInvocations)
 		})
 	}
 }
