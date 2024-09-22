@@ -26,11 +26,19 @@ func resourceEmail() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
+			"to_display_name": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+			},
 			"from": &schema.Schema{
 				Type:     schema.TypeString,
 				Required: true,
 			},
-			"reply_to": &schema.Schema{ // Add this field
+			"from_display_name": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"reply_to": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
 				Default:  "",
@@ -82,7 +90,9 @@ func extractStatusCode(errMsg string) string {
 
 func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	to := d.Get("to").(string)
+	toDisplayName := d.Get("to_display_name").(string)
 	from := d.Get("from").(string)
+	fromDisplayName := d.Get("from_display_name").(string)
 	replyTo := d.Get("reply_to").(string)
 	subject := d.Get("subject").(string)
 	preamble := d.Get("preamble").(string)
@@ -92,8 +102,15 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	smtpUsername := d.Get("smtp_username").(string)
 	smtpPassword := d.Get("smtp_password").(string)
 
-	msg := "From: " + from + "\n" +
-		"To: " + to + "\n" +
+	if toDisplayName == "" {
+		toDisplayName = to
+	}
+	if fromDisplayName == "" {
+		fromDisplayName = from
+	}
+
+	msg := "From: " + fromDisplayName + "\n" +
+		"To: " + toDisplayName + "\n" +
 		"Reply-To: " + replyTo + "\n" +
 		"Subject: " + subject + "\n" +
 		preamble + "\n\n" +

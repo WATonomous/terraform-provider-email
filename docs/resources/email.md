@@ -28,7 +28,10 @@ description: |-
 
 ### Optional
 
+- `from_display_name` (String)
+- `preamble` (String)
 - `reply_to` (String)
+- `to_display_name` (String)
 
 ### Read-Only
 
