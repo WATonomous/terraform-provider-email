@@ -11,7 +11,9 @@ provider "email" {}
 
 resource "email_email" "example" {
   to = "infra-outreach@watonomous.ca"
+  to_display_name = "Infrastructure Outreach <infra-outreach@watonomous.ca>"
   from = "sentry-outgoing@watonomous.ca"
+  from_display_name = "Sentry Outgoing <sentry-outgoing@watonomous.ca>"
   reply_to = "infrastructure@watonomous.ca"
   subject = "Hello from Terraform"
   body = "This is a test email sent from Terraform using a custom email provider."
@@ -25,7 +27,9 @@ resource "email_email" "example" {
 
 resource "email_email" "example_with_styling" {
   to = "infra-outreach@watonomous.ca"
+  to_display_name = "Infrastructure Outreach <infra-outreach@watonomous.ca>"
   from = "sentry-outgoing@watonomous.ca"
+  from_display_name = "Sentry Outgoing <sentry-outgoing@watonomous.ca>"
   reply_to = "infrastructure@watonomous.ca"
   subject = "Hello from Terraform"
   preamble = <<EOT
