@@ -9,6 +9,7 @@ terraform {
 
 provider "email" {}
 
+
 resource "email_email" "example" {
   to = "infra-outreach@watonomous.ca"
   to_display_name = "Infrastructure Outreach <infra-outreach@watonomous.ca>"
