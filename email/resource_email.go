@@ -73,6 +73,11 @@ func resourceEmail() *schema.Resource {
 				Required:  true,
 				Sensitive: true,
 			},
+			"dry_run": &schema.Schema{
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
 		},
 	}
 }
@@ -101,6 +106,7 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	smtpPort := d.Get("smtp_port").(string)
 	smtpUsername := d.Get("smtp_username").(string)
 	smtpPassword := d.Get("smtp_password").(string)
+	dryRun := d.Get("dry_run").(bool)
 
 	if toDisplayName == "" {
 		toDisplayName = to
@@ -116,14 +122,18 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 		preamble + "\n\n" +
 		body
 
-	// TODO: make this tf configurable
-	maxRetries := 5
-	// send mail using exponential back-off
-	err := sendMail(smtp.SendMail, maxRetries, smtpServer, smtpPort, smtpUsername, smtpPassword, from, to, msg)
-	// log error if not cleared after retries
-	if err != nil {
-		log.Printf("smtp error: %s", err)
-		return err
+	if dryRun {
+		log.Printf("In dry-run mode. Not sending email to %s with subject %s", to, subject)
+	} else {
+		// TODO: make this tf configurable
+		maxRetries := 5
+		// send mail using exponential back-off
+		err := sendMail(smtp.SendMail, maxRetries, smtpServer, smtpPort, smtpUsername, smtpPassword, from, to, msg)
+		// log error if not cleared after retries
+		if err != nil {
+			log.Printf("smtp error: %s", err)
+			return err
+		}
 	}
 
 	timestamp := time.Now().Unix()
