@@ -6,6 +6,7 @@ import (
 	"net/smtp"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -23,8 +24,9 @@ func resourceEmail() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"to": &schema.Schema{
-				Type:     schema.TypeString,
+				Type:     schema.TypeList,
 				Required: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"to_display_name": &schema.Schema{
 				Type:     schema.TypeString,
@@ -94,7 +96,7 @@ func extractStatusCode(errMsg string) string {
 }
 
 func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
-	to := d.Get("to").(string)
+	to := d.Get("to").([]string)
 	toDisplayName := d.Get("to_display_name").(string)
 	from := d.Get("from").(string)
 	fromDisplayName := d.Get("from_display_name").(string)
@@ -109,7 +111,7 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	dryRun := d.Get("dry_run").(bool)
 
 	if toDisplayName == "" {
-		toDisplayName = to
+		toDisplayName = strings.Join(to, ", ")
 	}
 	if fromDisplayName == "" {
 		fromDisplayName = from
@@ -137,12 +139,12 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	}
 
 	timestamp := time.Now().Unix()
-	d.SetId(to + " | " + subject + " | " + strconv.FormatInt(timestamp, 10))
+	d.SetId(strings.Join(to, ",") + " | " + subject + " | " + strconv.FormatInt(timestamp, 10))
 
 	return resourceEmailRead(d, m)
 }
 
-func sendMail(sendEmailImpl SendMailFunc, maxRetries int, smtpServer string, smtpPort string, smtpUsername string, smtpPassword string, from string, to string, msg string) error {
+func sendMail(sendEmailImpl SendMailFunc, maxRetries int, smtpServer string, smtpPort string, smtpUsername string, smtpPassword string, from string, to []string, msg string) error {
 	// Set up a random number for exponential backoff
 	minRandInt := 10
 	maxRandInt := 150
@@ -153,7 +155,7 @@ func sendMail(sendEmailImpl SendMailFunc, maxRetries int, smtpServer string, smt
 		// send smtp email
 		err = sendEmailImpl(smtpServer+":"+smtpPort,
 			smtp.PlainAuth("", smtpUsername, smtpPassword, smtpServer),
-			from, []string{to}, []byte(msg))
+			from, to, []byte(msg))
 
 		if err == nil {
 			break
