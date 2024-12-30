@@ -28,6 +28,7 @@ description: |-
 
 ### Optional
 
+- `dry_run` (Boolean)
 - `from_display_name` (String)
 - `preamble` (String)
 - `reply_to` (String)
