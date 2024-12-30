@@ -123,7 +123,7 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 		body
 
 	if dryRun {
-		log.Printf("In dry-run mode. Not sending email to %s with subject %s", to, subject)
+		log.Printf("In dry-run mode. Not sending email from %s to %s with subject %s", from, to, subject)
 	} else {
 		// TODO: make this tf configurable
 		maxRetries := 5
