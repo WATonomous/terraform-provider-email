@@ -1,6 +1,7 @@
 package email
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"net/smtp"
@@ -31,8 +32,9 @@ func resourceEmail() *schema.Resource {
 				Deprecated: "Use `to_list` instead",
 			},
 			"to_list": &schema.Schema{
-				Type:     schema.TypeList,
-				Required: true,
+				Type: schema.TypeList,
+				// TODO: make this required after deprecating `to`
+				Optional: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"to_display_name": &schema.Schema{
@@ -103,9 +105,18 @@ func extractStatusCode(errMsg string) string {
 }
 
 func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
-	rawTo := d.Get("to_list").([]interface{})
-	to := make([]string, len(rawTo))
-	for i, v := range rawTo {
+	rawToList, ok := d.GetOk("to_list")
+	// For backward compatibility
+	if !ok {
+		rawTo, ok := d.GetOk("to")
+		if !ok {
+			// raise exception
+			return errors.New("`to` or `to_list` must be set")
+		}
+		rawToList = []interface{}{rawTo}
+	}
+	to := make([]string, len(rawToList.([]interface{})))
+	for i, v := range rawToList.([]interface{}) {
 		to[i] = v.(string)
 	}
 	toDisplayName := d.Get("to_display_name").(string)
