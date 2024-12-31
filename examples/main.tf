@@ -11,7 +11,7 @@ provider "email" {}
 
 
 resource "email_email" "example" {
-  to = "infra-outreach@watonomous.ca"
+  to_list = ["infra-outreach@watonomous.ca"]
   to_display_name = "Infrastructure Outreach <infra-outreach@watonomous.ca>"
   from = "sentry-outgoing@watonomous.ca"
   from_display_name = "Sentry Outgoing <sentry-outgoing@watonomous.ca>"
@@ -27,7 +27,7 @@ resource "email_email" "example" {
 }
 
 resource "email_email" "example_with_styling" {
-  to = "infra-outreach@watonomous.ca"
+  to_list = ["infra-outreach@watonomous.ca"]
   to_display_name = "Infrastructure Outreach <infra-outreach@watonomous.ca>"
   from = "sentry-outgoing@watonomous.ca"
   from_display_name = "Sentry Outgoing <sentry-outgoing@watonomous.ca>"

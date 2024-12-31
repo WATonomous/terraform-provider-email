@@ -1,11 +1,13 @@
 package email
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"net/smtp"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -16,6 +18,8 @@ type SendMailFunc func(addr string, a smtp.Auth, from string, to []string, msg [
 
 func resourceEmail() *schema.Resource {
 	return &schema.Resource{
+		SchemaVersion: 1,
+
 		Create: resourceEmailCreate,
 		Read:   resourceEmailRead,
 		Update: resourceEmailUpdate,
@@ -23,8 +27,15 @@ func resourceEmail() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"to": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
+				Type:       schema.TypeString,
+				Optional:   true,
+				Deprecated: "Use `to_list` instead",
+			},
+			"to_list": &schema.Schema{
+				Type: schema.TypeList,
+				// TODO: make this required after deprecating `to`
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"to_display_name": &schema.Schema{
 				Type:     schema.TypeString,
@@ -94,7 +105,25 @@ func extractStatusCode(errMsg string) string {
 }
 
 func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
-	to := d.Get("to").(string)
+	rawToList, ok := d.GetOk("to_list")
+	// For backward compatibility
+	if !ok {
+		rawTo, ok := d.GetOk("to")
+		if !ok {
+			// raise exception
+			return errors.New("`to` or `to_list` must be specified")
+		}
+		rawToList = []interface{}{rawTo}
+	}
+	to := make([]string, len(rawToList.([]interface{})))
+	for i, v := range rawToList.([]interface{}) {
+		to[i] = v.(string)
+	}
+
+	if len(to) == 0 {
+		return errors.New("at least one recipient must be specified")
+	}
+
 	toDisplayName := d.Get("to_display_name").(string)
 	from := d.Get("from").(string)
 	fromDisplayName := d.Get("from_display_name").(string)
@@ -109,7 +138,7 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	dryRun := d.Get("dry_run").(bool)
 
 	if toDisplayName == "" {
-		toDisplayName = to
+		toDisplayName = strings.Join(to, ", ")
 	}
 	if fromDisplayName == "" {
 		fromDisplayName = from
@@ -137,12 +166,12 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	}
 
 	timestamp := time.Now().Unix()
-	d.SetId(to + " | " + subject + " | " + strconv.FormatInt(timestamp, 10))
+	d.SetId(strings.Join(to, ",") + " | " + subject + " | " + strconv.FormatInt(timestamp, 10))
 
 	return resourceEmailRead(d, m)
 }
 
-func sendMail(sendEmailImpl SendMailFunc, maxRetries int, smtpServer string, smtpPort string, smtpUsername string, smtpPassword string, from string, to string, msg string) error {
+func sendMail(sendEmailImpl SendMailFunc, maxRetries int, smtpServer string, smtpPort string, smtpUsername string, smtpPassword string, from string, to []string, msg string) error {
 	// Set up a random number for exponential backoff
 	minRandInt := 10
 	maxRandInt := 150
@@ -153,7 +182,7 @@ func sendMail(sendEmailImpl SendMailFunc, maxRetries int, smtpServer string, smt
 		// send smtp email
 		err = sendEmailImpl(smtpServer+":"+smtpPort,
 			smtp.PlainAuth("", smtpUsername, smtpPassword, smtpServer),
-			from, []string{to}, []byte(msg))
+			from, to, []byte(msg))
 
 		if err == nil {
 			break
