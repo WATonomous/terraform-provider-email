@@ -24,7 +24,6 @@ description: |-
 - `smtp_server` (String)
 - `smtp_username` (String)
 - `subject` (String)
-- `to_list` (List of String)
 
 ### Optional
 
@@ -34,6 +33,7 @@ description: |-
 - `reply_to` (String)
 - `to` (String, Deprecated)
 - `to_display_name` (String)
+- `to_list` (List of String)
 
 ### Read-Only
 
