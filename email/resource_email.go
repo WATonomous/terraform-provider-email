@@ -111,7 +111,7 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 		rawTo, ok := d.GetOk("to")
 		if !ok {
 			// raise exception
-			return errors.New("`to` or `to_list` must be set")
+			return errors.New("`to` or `to_list` must be specified")
 		}
 		rawToList = []interface{}{rawTo}
 	}
@@ -119,6 +119,11 @@ func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
 	for i, v := range rawToList.([]interface{}) {
 		to[i] = v.(string)
 	}
+
+	if len(to) == 0 {
+		return errors.New("at least one recipient must be specified")
+	}
+
 	toDisplayName := d.Get("to_display_name").(string)
 	from := d.Get("from").(string)
 	fromDisplayName := d.Get("from_display_name").(string)
