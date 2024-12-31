@@ -26,9 +26,9 @@ func TestAccEmail_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckEmailExists("email_email.example"),
 					resource.TestCheckResourceAttr(
-						"email_email.example", "to.#", "1"),
+						"email_email.example", "to_list.#", "1"),
 					resource.TestCheckResourceAttr(
-						"email_email.example", "to.0", "recipient@example.com"),
+						"email_email.example", "to_list.0", "recipient@example.com"),
 					resource.TestCheckResourceAttr(
 						"email_email.example", "from", "sender@example.com"),
 					resource.TestCheckResourceAttr(
@@ -134,7 +134,7 @@ func TestRetryWorkflow(t *testing.T) {
 // `docker run --rm -it -p 3000:80 -p 2525:25 rnwood/smtp4dev:v3`
 const testAccEmailConfig = `
 resource "email_email" "example" {
-	to = ["recipient@example.com"]
+	to_list = ["recipient@example.com"]
 	from = "sender@example.com"
 	reply_to = "reply_to@example.com"
 	subject = "Test Subject"

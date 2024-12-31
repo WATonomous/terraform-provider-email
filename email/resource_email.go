@@ -17,6 +17,8 @@ type SendMailFunc func(addr string, a smtp.Auth, from string, to []string, msg [
 
 func resourceEmail() *schema.Resource {
 	return &schema.Resource{
+		SchemaVersion: 1,
+
 		Create: resourceEmailCreate,
 		Read:   resourceEmailRead,
 		Update: resourceEmailUpdate,
@@ -24,6 +26,11 @@ func resourceEmail() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"to": &schema.Schema{
+				Type:       schema.TypeString,
+				Optional:   true,
+				Deprecated: "Use `to_list` instead",
+			},
+			"to_list": &schema.Schema{
 				Type:     schema.TypeList,
 				Required: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
@@ -96,7 +103,7 @@ func extractStatusCode(errMsg string) string {
 }
 
 func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
-	rawTo := d.Get("to").([]interface{})
+	rawTo := d.Get("to_list").([]interface{})
 	to := make([]string, len(rawTo))
 	for i, v := range rawTo {
 		to[i] = v.(string)
