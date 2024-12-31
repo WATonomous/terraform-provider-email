@@ -96,7 +96,11 @@ func extractStatusCode(errMsg string) string {
 }
 
 func resourceEmailCreate(d *schema.ResourceData, m interface{}) error {
-	to := d.Get("to").([]string)
+	rawTo := d.Get("to").([]interface{})
+	to := make([]string, len(rawTo))
+	for i, v := range rawTo {
+		to[i] = v.(string)
+	}
 	toDisplayName := d.Get("to_display_name").(string)
 	from := d.Get("from").(string)
 	fromDisplayName := d.Get("from_display_name").(string)
